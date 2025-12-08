@@ -1,1 +1,2 @@
 # User-Ip-Viewer
+User-IP-Viewer is a web application built with React and Node.js that retrieves and displays the user's IP address. This project covers DevOps concepts and tools such as Dockerfiles for containerization, GitHub Actions for CI/CD, Terraform for infrastructure as code, and AWS services like ECR for container registry and EKS for container orchestration. It demonstrates how to integrate these tools to create an efficient, automated, and scalable deployment pipeline for web applications.
