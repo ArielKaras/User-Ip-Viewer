@@ -1,20 +1,23 @@
-# Use an official Node.js runtime as a parent image
-FROM node:18-alpine
+FROM node:20-alpine
 
-# Set the working directory
+# Create app directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
+# Create non-root user
+RUN addgroup -S app && adduser -S app -G app
+
+# Install app dependencies
 COPY package*.json ./
+RUN npm ci --only=production
 
-# Install dependencies
-RUN npm install
-
-# Copy the rest of the application code
+# Bundle app source
 COPY . .
 
-# Expose the API port
-EXPOSE 3001
+# Change ownership to non-root user
+RUN chown -R app:app /app
 
-# Command to run the application
-CMD ["node", "server.js"]
+# Switch to non-root user
+USER app
+
+EXPOSE 3001
+CMD [ "node", "server.js" ]
