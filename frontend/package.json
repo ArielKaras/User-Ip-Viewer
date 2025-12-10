@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "echo \"Warning: No tests implemented\" && exit 0",
     "preview": "vite preview"
   },
   "dependencies": {
