@@ -21,6 +21,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # TODO: Switch to OIDC when Prod IAM role is ready
+      # permissions:
+      #   id-token: write
+      #   contents: read
+      # uses: aws-actions/configure-aws-credentials@v4
+      # with:
+      #   role-to-assume: arn:aws:iam::343253677111:role/github-actions-user-ip-viewer-prod
+
       - name: Configure AWS Credentials (Prod)
         uses: aws-actions/configure-aws-credentials@v4
         with:

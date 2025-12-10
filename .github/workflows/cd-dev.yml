@@ -4,8 +4,12 @@ on:
   push:
     branches: [ "dev" ]
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
-  AWS_REGION: us-east-1 # Configure as needed
+  AWS_REGION: us-east-1
   ECR_REPOSITORY_BACKEND: user-ip-viewer-backend-dev
   ECR_REPOSITORY_FRONTEND: user-ip-viewer-frontend-dev
 
@@ -16,15 +20,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Configure AWS Credentials (Dev)
+      - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          role-to-assume: arn:aws:iam::343253677111:role/github-actions-user-ip-viewer-dev
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Amazon ECR
         id: login-ecr
