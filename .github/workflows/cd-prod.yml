@@ -6,7 +6,7 @@ on:
     tags: [ 'v*' ]
 
 env:
-  AWS_REGION: us-east-1 # Configure as needed
+  AWS_REGION: us-east-1
   ECR_REPOSITORY_BACKEND: user-ip-viewer-backend
   ECR_REPOSITORY_FRONTEND: user-ip-viewer-frontend
 
@@ -21,14 +21,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # TODO: Switch to OIDC when Prod IAM role is ready
-      # permissions:
-      #   id-token: write
-      #   contents: read
-      # uses: aws-actions/configure-aws-credentials@v4
-      # with:
-      #   role-to-assume: arn:aws:iam::343253677111:role/github-actions-user-ip-viewer-prod
-
+      # TODO: migrate Prod to OIDC role (similar to Dev) once IAM role github-actions-user-ip-viewer-prod is created.
       - name: Configure AWS Credentials (Prod)
         uses: aws-actions/configure-aws-credentials@v4
         with:

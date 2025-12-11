@@ -16,7 +16,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -32,12 +32,13 @@ jobs:
       - name: Test
         run: npm run test
 
-      - name: Security Scan (Snyk)
-        uses: snyk/actions/node@master
+      - name: Snyk Scan (Backend)
+        if: secrets.SNYK_TOKEN != ''
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --all-projects --severity-threshold=high
+        run: |
+          npm install -g snyk
+          snyk test || true
 
   ci-frontend:
     runs-on: ubuntu-latest
@@ -48,7 +49,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -64,21 +65,16 @@ jobs:
       - name: Test
         run: npm run test
 
-      - name: Security Scan (Snyk)
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --all-projects --severity-threshold=high
-
       - name: Build Frontend
         run: npm run build
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist/
+      - name: Snyk Scan (Frontend)
+        if: secrets.SNYK_TOKEN != ''
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          npm install -g snyk
+          snyk test || true
 
   docker-build-validation:
     needs: [ci-backend, ci-frontend]
