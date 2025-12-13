@@ -71,4 +71,4 @@ jobs:
       
       - name: Verify Combined Docker Build
         run: |
-          docker build -f Dockerfile.combined .
+          docker build --build-arg COMMIT_SHA=${{ github.sha }} -f Dockerfile.combined .

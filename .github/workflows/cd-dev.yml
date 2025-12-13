@@ -42,9 +42,9 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: dev-${{ github.sha }}
         run: |
-          # Build using the Combined Dockerfile
-          docker build -f Dockerfile.combined -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -f Dockerfile.combined -t $ECR_REGISTRY/$ECR_REPOSITORY:dev .
+          # Build using the Combined Dockerfile with Commit SHA burned in
+          docker build --build-arg COMMIT_SHA=${{ github.sha }} -f Dockerfile.combined -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build --build-arg COMMIT_SHA=${{ github.sha }} -f Dockerfile.combined -t $ECR_REGISTRY/$ECR_REPOSITORY:dev .
           
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:dev

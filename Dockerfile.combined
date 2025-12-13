@@ -31,5 +31,9 @@ RUN chown -R app:app /app
 # Switch to non-root
 USER app
 
+# Immutability Proof: Burn the Commit SHA into the image
+ARG COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA
+
 EXPOSE 3001
 CMD [ "node", "server.js" ]
