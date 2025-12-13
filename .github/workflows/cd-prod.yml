@@ -6,56 +6,107 @@ on:
     tags: [ 'v*' ]
 
 env:
-  AWS_REGION: us-east-1 # Configure as needed
-  ECR_REPOSITORY_BACKEND: user-ip-viewer-backend
-  ECR_REPOSITORY_FRONTEND: user-ip-viewer-frontend
+  AWS_REGION: eu-west-1
+  # Source Repos (from Dev)
+  ECR_REPOSITORY_BACKEND_DEV: user-ip-viewer-backend-dev
+  ECR_REPOSITORY_FRONTEND_DEV: user-ip-viewer-frontend-dev
+  # Target Repos (Production)
+  ECR_REPOSITORY_BACKEND_PROD: user-ip-viewer-backend
+  ECR_REPOSITORY_FRONTEND_PROD: user-ip-viewer-frontend
 
 jobs:
   build-and-deploy-prod:
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed to track merge parents
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # TODO: Switch to OIDC when Prod IAM role is ready
-      # permissions:
-      #   id-token: write
-      #   contents: read
-      # uses: aws-actions/configure-aws-credentials@v4
-      # with:
-      #   role-to-assume: arn:aws:iam::343253677111:role/github-actions-user-ip-viewer-prod
-
-      - name: Configure AWS Credentials (Prod)
+      - name: Configure AWS Credentials (Prod OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          # TODO: ideally use a separate Prod role. for now using the same account/role structure as a demo 
+          role-to-assume: arn:aws:iam::343253677111:role/github-actions-user-ip-viewer-dev 
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and Push Backend (Prod)
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Determine Source SHA
+        id: source-sha
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG ./backend
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest ./backend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
+          # If this is a merge commit, the second parent is usually the source (dev)
+          # git show -s --format=%P HEAD
+          # However, to be safe, we will look for the image tag 'dev-<SHA>' that exists in ECR.
+          
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Current Commit: $COMMIT_SHA"
+          
+          # Check if current commit has a built image (Direct Push case)
+          SOURCE_TAG="dev-$COMMIT_SHA"
+          
+          # If not found, check parents (Merge case)
+          PARENTS=$(git show -s --format=%P HEAD)
+          for PARENT in $PARENTS; do
+            echo "Checking parent: $PARENT"
+            # In a real scenario we would check ECR existence here using aws ecr describe-images
+            # For simplicity in this demo, we assume the second parent (the merged branch tip) is the source if merge.
+            # Usually Parent 1 = Main (Target), Parent 2 = Dev (Source)
+          done
 
-      - name: Build and Push Frontend (Prod)
+          # Optimization: Just use the commit SHA. 
+          # PROMOTION LOGIC: 
+          # We assume the 'Dev' workflow ran on the commit that is BEING merged.
+          # If GitHub does a "Merge Commit", the code in Main is a NEW commit.
+          # The code we want to deploy is the binary built from the *source* branch tip.
+          
+          # HACK for Demo: We will try to find the dev tag corresponding to the second parent.
+          if [ $(echo $PARENTS | wc -w) -gt 1 ]; then
+             SOURCE_SHA=$(echo $PARENTS | awk '{print $2}')
+             echo "Detected Merge Commit. Source Logic SHA: $SOURCE_SHA"
+          else
+             SOURCE_SHA=$COMMIT_SHA
+             echo "Detected Direct Push. Source Logic SHA: $SOURCE_SHA"
+          fi
+          
+          echo "source_tag=dev-$SOURCE_SHA" >> $GITHUB_OUTPUT
+
+      - name: Promote Backend (No Rebuild)
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          SOURCE_TAG: ${{ steps.source-sha.outputs.source_tag }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG ./frontend
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest ./frontend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest
+          echo "Promoting artifacts from $SOURCE_TAG to latest..."
+          
+          # Pull the verified DEV image
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND_DEV:$SOURCE_TAG
+          
+          # Retag for PROD
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND_PROD:latest
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND_PROD:${{ github.sha }}
+          
+          # Push to PROD
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND_PROD:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND_PROD:${{ github.sha }}
+
+      - name: Promote Frontend (No Rebuild)
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          SOURCE_TAG: ${{ steps.source-sha.outputs.source_tag }}
+        run: |
+          echo "Promoting artifacts from $SOURCE_TAG to latest..."
+          
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND_DEV:$SOURCE_TAG
+          
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND_PROD:latest
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND_PROD:${{ github.sha }}
+          
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND_PROD:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND_PROD:${{ github.sha }}

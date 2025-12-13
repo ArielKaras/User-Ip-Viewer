@@ -2,9 +2,9 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 0",
+    "test": "jest",
     "lint": "eslint ."
   },
   "keywords": [],
@@ -17,6 +17,10 @@
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "eslint": "^9.39.1"
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }
