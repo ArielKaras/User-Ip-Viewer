@@ -19,6 +19,11 @@ app.get('/api/ip', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`Backend server running on http://localhost:${port}`);
-});
+// Only start the server if this file is run directly
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Backend server running on http://localhost:${port}`);
+    });
+}
+
+module.exports = app;
