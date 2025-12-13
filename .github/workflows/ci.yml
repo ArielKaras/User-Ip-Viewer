@@ -33,10 +33,13 @@ jobs:
         run: npm run test
 
       - name: Snyk Scan (Backend)
-        if: secrets.SNYK_TOKEN != ''
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "SNYK_TOKEN not found, skipping scan."
+            exit 0
+          fi
           npm install -g snyk
           snyk test || true
 
@@ -69,10 +72,13 @@ jobs:
         run: npm run build
 
       - name: Snyk Scan (Frontend)
-        if: secrets.SNYK_TOKEN != ''
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "SNYK_TOKEN not found, skipping scan."
+            exit 0
+          fi
           npm install -g snyk
           snyk test || true
 
