@@ -5,7 +5,7 @@ on:
     branches: [ "dev" ]
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: eu-west-1
   ECR_REPOSITORY_BACKEND: user-ip-viewer-backend-dev
   ECR_REPOSITORY_FRONTEND: user-ip-viewer-frontend-dev
 
