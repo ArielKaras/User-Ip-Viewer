@@ -1,22 +1,39 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 const app = express();
 const port = 3001;
 
 app.use(cors());
 
+// 1. Health Check (Crucial for App Runner)
+app.get('/healthz', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
+// 2. API Routes (Must come BEFORE static files)
 app.get('/api/ip', async (req, res) => {
     try {
-        // Fetch public IP from an external service to ensure we get the real public IPv4
+        // Fetch public IP of the SERVER (Hosting Environment)
         const response = await axios.get('https://api.ipify.org?format=json');
         const publicIp = response.data.ip;
         res.json({ ip: publicIp });
     } catch (error) {
         console.error('Error fetching public IP:', error.message);
-        // Fallback if external service fails (though user specifically wants public IP)
-        res.status(500).json({ ip: 'Error fetching public IP' });
+        res.status(500).json({ ip: 'Error fetching server IP' });
     }
+});
+
+// 3. Serve Static Frontend (Vite build output)
+// Verify if 'client/dist' exists (it will in the Docker container)
+const clientBuildPath = path.join(__dirname, 'client', 'dist');
+app.use(express.static(clientBuildPath));
+
+// 4. SPA Fallback (Catch-all)
+// Any request not handled by API or Static files returns index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
 // Only start the server if this file is run directly
