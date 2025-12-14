@@ -6,8 +6,7 @@ on:
 
 env:
   AWS_REGION: eu-west-1
-  ECR_REPOSITORY_BACKEND: user-ip-viewer-backend-dev
-  ECR_REPOSITORY_FRONTEND: user-ip-viewer-frontend-dev
+  ECR_REPOSITORY: user-ip-viewer-combined-dev
 
 jobs:
   build-and-deploy-dev:
@@ -32,23 +31,20 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+      
+      # Create Repo if missing (Helper for Dev)
+      - name: Ensure ECR Repo Exists
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} || aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY }}
 
-      - name: Build and Push Backend (Dev)
+      - name: Build and Push Combined (Dev)
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: dev-${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG ./backend
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:dev ./backend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:dev
-
-      - name: Build and Push Frontend (Dev)
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: dev-${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG ./frontend
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:dev ./frontend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:dev
+          # Build using the Combined Dockerfile with Commit SHA burned in
+          docker build --build-arg COMMIT_SHA=${{ github.sha }} -f Dockerfile.combined -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build --build-arg COMMIT_SHA=${{ github.sha }} -f Dockerfile.combined -t $ECR_REGISTRY/$ECR_REPOSITORY:dev .
+          
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:dev

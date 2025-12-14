@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+.github
+
+# Dependencies
+**/node_modules
+**/npm-debug.log
+
+# Testing & Linting
+**/tests
+**/*.test.js
+**/*.spec.js
+**/eslint.config.js
+**/.eslintrc.js
+
+# Build Artifacts
+**/dist
+**/.DS_Store
+
+# Scripts & Configs
+scripts/
+docker-compose.yml
+README.md
+
+# Documentation
+*.md
