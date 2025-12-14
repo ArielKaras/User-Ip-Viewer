@@ -4,13 +4,19 @@ on:
   push:
     branches: [ "main" ]
     tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: 'Specific DEV tag to promote (e.g. dev-abc1234). Leave empty to auto-detect.'
+        required: false
+        type: string
 
 env:
   AWS_REGION: eu-west-1
   # Source Repo (Dev)
-  ECR_REPOSITORY_DEV: user-ip-viewer-combined-dev
+  ECR_REPOSITORY_COMBINED_DEV: user-ip-viewer-combined-dev
   # Target Repo (Production)
-  ECR_REPOSITORY_PROD: user-ip-viewer-combined
+  ECR_REPOSITORY_COMBINED_PROD: user-ip-viewer-combined
 
 jobs:
   build-and-deploy-prod:
@@ -29,7 +35,7 @@ jobs:
       - name: Configure AWS Credentials (Prod OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # TODO: ideally use a separate Prod role. for now using the same account/role structure as a demo 
+          # DEMO NOTE: Using the Dev role for demonstration. In a real setup, use a separate Prod role (e.g., ...-prod)
           role-to-assume: arn:aws:iam::343253677111:role/github-actions-user-ip-viewer-dev 
           aws-region: ${{ env.AWS_REGION }}
 
@@ -37,53 +43,91 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
       
-      # Ensure Prod Repo Exists
+      # Ensure Prod Repo Exists (Region Safe)
       - name: Ensure ECR Repo Exists
         run: |
-          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY_PROD }} || aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY_PROD }}
+          set -euo pipefail
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY_COMBINED_PROD }} --region ${{ env.AWS_REGION }} || \
+          aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY_COMBINED_PROD }} --region ${{ env.AWS_REGION }} --image-tag-mutability MUTABLE
 
-      - name: Determine Source SHA
-        id: source-sha
+      - name: Determine Source SHA/Tag
+        id: source-ref
         run: |
-          # If this is a merge commit, the second parent is usually the source (dev)
+          set -euo pipefail
+          
+          # Priority 1: Manual Input
+          if [ -n "${{ inputs.source_tag }}" ]; then
+            echo "Manual input detected: ${{ inputs.source_tag }}"
+            echo "source_tag=${{ inputs.source_tag }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Priority 2: Git Tag
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+             # Expectation: Release tag v1.0.0 corresponds to dev-<commit-sha-of-tag>
+             TAG_COMMIT_SHA=$(git rev-list -n 1 ${{ github.ref_name }})
+             echo "Git Tag detected: ${{ github.ref_name }} -> Commit $TAG_COMMIT_SHA"
+             echo "source_tag=dev-$TAG_COMMIT_SHA" >> $GITHUB_OUTPUT
+             exit 0
+          fi
+          
+          # Priority 3: Merge Commit (Main Branch Push)
           COMMIT_SHA=$(git rev-parse HEAD)
           echo "Current Commit: $COMMIT_SHA"
           
-          # HACK for Demo: We will try to find the dev tag corresponding to the second parent.
           PARENTS=$(git show -s --format=%P HEAD)
-          if [ $(echo $PARENTS | wc -w) -gt 1 ]; then
+          PARENT_COUNT=$(echo $PARENTS | wc -w)
+
+          if [ "$PARENT_COUNT" -gt 1 ]; then
              SOURCE_SHA=$(echo $PARENTS | awk '{print $2}')
              echo "Detected Merge Commit. Source Logic SHA: $SOURCE_SHA"
+             echo "source_tag=dev-$SOURCE_SHA" >> $GITHUB_OUTPUT
           else
-             SOURCE_SHA=$COMMIT_SHA
-             echo "Detected Direct Push. Source Logic SHA: $SOURCE_SHA"
+             # Direct Push to Main is NOT supported for auto-promotion to prevent accidents
+             echo "::error::Direct push to main detected (No Merge Parent). Verification artifacts usually missing for this exact SHA."
+             echo "::error::Please use 'workflow_dispatch' with a specific 'source_tag' (e.g. dev-<sha>) or merge via Pull Request."
+             exit 1
           fi
+
+      - name: Verify Source Image Exists (Guard Clause)
+        id: check-image
+        env:
+          SOURCE_TAG: ${{ steps.source-ref.outputs.source_tag }}
+        run: |
+          set -euo pipefail
+          echo "Verifying existence of image: $ECR_REPOSITORY_COMBINED_DEV:$SOURCE_TAG"
           
-          echo "source_tag=dev-$SOURCE_SHA" >> $GITHUB_OUTPUT
+          if aws ecr describe-images --repository-name $ECR_REPOSITORY_COMBINED_DEV --image-ids imageTag=$SOURCE_TAG --region $AWS_REGION > /dev/null 2>&1; then
+            echo "Image found. Proceeding."
+          else
+            echo "::error::Image $ECR_REPOSITORY_COMBINED_DEV:$SOURCE_TAG NOT FOUND in ECR."
+            echo "This usually means the CI/CD Dev workflow hasn't successfully pushed this tag yet, or it was deleted."
+            echo "RECOVERY ACTION: Run the 'CD - Deploy to Dev' workflow manually or push a commit to dev to regenerate the artifacts."
+            exit 1
+          fi
 
       - name: Promote Combined Image (No Rebuild)
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          SOURCE_TAG: ${{ steps.source-sha.outputs.source_tag }}
+          SOURCE_TAG: ${{ steps.source-ref.outputs.source_tag }}
         run: |
+          set -euo pipefail
           echo "Promoting artifacts from $SOURCE_TAG to latest..."
           
-          # Strict Check: Pull the verified DEV image
-          # If this fails, it means we don't have a verified artifact -> Fail Pipeline
-          docker pull $ECR_REGISTRY/$ECR_REPOSITORY_DEV:$SOURCE_TAG
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_DEV:$SOURCE_TAG
           
           # Retag Latest
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_PROD:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_PROD:latest
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_PROD:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_PROD:latest
           
-          # Retag SHA (Always useful)
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_PROD:${{ github.sha }}
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_PROD:${{ github.sha }}
+          # Retag SHA (Using the current prod commit SHA for traceability)
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_PROD:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_PROD:${{ github.sha }}
 
           # Retag Semantic Version (if applicable)
           if [ "${{ github.ref_type }}" == "tag" ]; then
             VERSION_TAG=${{ github.ref_name }}
             echo "Applying Semantic Version Tag: $VERSION_TAG"
-            docker tag $ECR_REGISTRY/$ECR_REPOSITORY_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_PROD:$VERSION_TAG
-            docker push $ECR_REGISTRY/$ECR_REPOSITORY_PROD:$VERSION_TAG
+            docker tag $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_DEV:$SOURCE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_PROD:$VERSION_TAG
+            docker push $ECR_REGISTRY/$ECR_REPOSITORY_COMBINED_PROD:$VERSION_TAG
           fi
