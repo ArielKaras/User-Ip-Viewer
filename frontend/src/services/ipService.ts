@@ -17,6 +17,36 @@ export const fetchIpData = async (): Promise<IpData> => {
     }
 };
 
+export const trackVisit = async (data: IpData): Promise<void> => {
+    try {
+        await fetch('/api/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ip: data.ip,
+                city: data.city,
+                country: data.country,
+                latitude: data.latitude,
+                longitude: data.longitude
+            })
+        });
+    } catch (error) {
+        console.error("Failed to track visit:", error);
+        // Fail silently to not disrupt UI
+    }
+};
+
+export const fetchHistory = async (): Promise<any[]> => {
+    try {
+        const response = await fetch('/api/history');
+        if (!response.ok) return [];
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to fetch history:", error);
+        return [];
+    }
+};
+
 export const getEnvironmentMetadata = (): 'DEV' | 'PROD' => {
     const hostname = window.location.hostname;
     if (

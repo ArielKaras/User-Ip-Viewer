@@ -1,30 +1,19 @@
-:root {
-  --bg-color: #0f172a;
-  --text-color: #f8fafc;
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --accent-1: #3b82f6; /* Blue */
-  --accent-2: #8b5cf6; /* Purple */
-  --accent-3: #ec4899; /* Pink */
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  :root {
+    --bg-color: #09090b;
+    --text-color: #e4e4e7;
+  }
 
-body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-}
+  body {
+    @apply bg-background text-text-primary antialiased font-sans;
 
-#root {
-  width: 100%;
+    /* Optional: Global selection color */
+    ::selection {
+      @apply bg-yellow-500/20 text-yellow-500;
+    }
+  }
 }
