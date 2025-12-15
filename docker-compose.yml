@@ -1,20 +1,62 @@
 services:
-  backend:
-    build: ./backend
+  nginx:
+    image: nginx:alpine
+    profiles:
+      - tls
     ports:
-      - "3001:3001"
-    networks:
-      - app-network
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:8080"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/certs:/etc/nginx/certs:ro
     depends_on:
-      - backend
+      - app
     networks:
-      - app-network
+      - ingress-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.combined
+    expose:
+      - "3001"
+    environment:
+      - DB_HOST=db
+      - DB_USER=app_user
+      - DB_PASSWORD=secure_password
+      - DB_NAME=user_ip_db
+      - DB_PORT=5432
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ingress-net
+      - data-net
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: user_ip_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - data-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U app_user -d user_ip_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
 
 networks:
-  app-network:
+  ingress-net:
     driver: bridge
+    internal: false
+  data-net:
+    driver: bridge
+    internal: true # Optional: restrict internet access if not needed, but good for pure data layer
