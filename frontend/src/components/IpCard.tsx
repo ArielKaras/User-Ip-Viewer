@@ -53,17 +53,23 @@ export const IpCard: React.FC<IpCardProps> = ({ data, loading, error, env }) => 
                     <StatusBadge env={env} />
                 </div>
 
-                {/* Map / Visualization */}
-                <div className="h-48 bg-background relative border-b border-border flex items-center justify-center overflow-hidden">
-                    <MapComponent lat={data.latitude} lng={data.longitude} />
-                </div>
+                {/* Map / Visualization (Only if lat/lon available) */}
+                {data.lat && data.lon && (
+                    <div className="h-48 bg-background relative border-b border-border flex items-center justify-center overflow-hidden">
+                        <MapComponent lat={data.lat} lng={data.lon} />
+                    </div>
+                )}
 
                 {/* Details List */}
                 <div className="p-6 space-y-1">
-                    <InfoRow label="Location" value={`${data.city}, ${data.country}`} delay="100ms" />
-                    <InfoRow label="ISP" value={data.connection.isp} delay="200ms" />
-                    <InfoRow label="Timezone" value={data.timezone.id} delay="300ms" />
-                    <InfoRow label="ASN" value={`AS${data.connection.asn} ${data.connection.org}`} delay="400ms" />
+                    <InfoRow label="Location" value={[data.city, data.country].filter(Boolean).join(', ') || 'Unknown'} delay="100ms" />
+
+                    {/* Optional fields if available, otherwise placeholders or hidden */}
+                    <InfoRow label="Region" value={data.region || '-'} delay="200ms" />
+                    <InfoRow label="Source" value={data.source} delay="300ms" />
+
+                    {/* Placeholder for ISP/Timezone if we decide to add them back later */}
+                    {data.isp && <InfoRow label="ISP" value={data.isp} delay="400ms" />}
                 </div>
 
             </div>

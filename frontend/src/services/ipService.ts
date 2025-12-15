@@ -2,14 +2,18 @@ import { IpData, BuildMetadata } from '../types';
 
 export const fetchIpData = async (): Promise<IpData> => {
     try {
-        const response = await fetch('https://ipwho.is/');
+        // Call our own Backend-for-Frontend (BFF) endpoint
+        // This includes IP resolution + Geo lookup in one safe call
+        const response = await fetch('/api/geo?precise=1');
+
         if (!response.ok) {
-            throw new Error(`Network response was not ok: ${response.statusText}`);
+            throw new Error(`Service unavailable: ${response.statusText}`);
         }
+
         const data = await response.json();
-        if (!data.success) {
-            throw new Error(data.message || 'Failed to retrieve IP data');
-        }
+
+        // Backend returns { ok: boolean, ... }
+        // We can pass it through directly as it matches IpData interface now
         return data as IpData;
     } catch (error) {
         console.error("Error fetching IP data:", error);
@@ -24,10 +28,10 @@ export const trackVisit = async (data: IpData): Promise<void> => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ip: data.ip,
-                city: data.city,
-                country: data.country,
-                latitude: data.latitude,
-                longitude: data.longitude
+                city: data.city || 'Unknown',
+                country: data.country || 'Unknown',
+                latitude: data.lat || 0,
+                longitude: data.lon || 0
             })
         });
     } catch (error) {
