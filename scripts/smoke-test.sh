@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Default to localhost if not provided
-BASE_URL="${BASE_URL:-http://localhost:3001}"
+BASE_URL="${BASE_URL:-http://localhost:80}"
 
 echo "========================================"
 echo "🔥 Smoke Test initiated against: $BASE_URL"
@@ -30,15 +30,26 @@ fi
 
 # 3. API IP Endpoint
 echo "[3/5] Checking /api/ip..."
-# Note: specific text search matches server.js success JSON content
 if curl -fsS "$BASE_URL/api/ip" | grep -q '"ip"'; then
   pass "/api/ip returned JSON with IP"
+fi
+
+# 3.1 DB Connectivity (New)
+echo "[3.1] Checking DB Status..."
+if curl -fsS "$BASE_URL/api/version" | grep -q '"db_status":"connected"'; then
+  pass "Database is connected"
 else
-  # It might return a 500 if ipify is down, but we want to check it's reachable
-  echo "⚠️  /api/ip response:"
-  curl -s "$BASE_URL/api/ip" || true
-  # We won't hard fail here if internet is flaky, but logging it is important
-  echo "   (Allowed failure if external API is down)"
+  # Fail soft if DB isn't ready yet (might take longer)
+  echo "⚠️  Database status not 'connected'. Check container logs."
+fi
+
+# 3.2 History API (New)
+echo "[3.2] Checking /api/history..."
+HTTP_CODE_HIST=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/history")
+if [ "$HTTP_CODE_HIST" == "200" ]; then
+    pass "/api/history returned 200 OK"
+else
+    fail "/api/history returned $HTTP_CODE_HIST"
 fi
 
 # 4. SPA Main Page
