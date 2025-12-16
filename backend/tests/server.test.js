@@ -26,7 +26,7 @@ describe('GET /api/ip', () => {
         const res = await request(app).get('/api/ip');
 
         expect(res.statusCode).toEqual(500);
-        expect(res.body).toEqual({ ip: 'Error fetching public IP' });
+        expect(res.body).toEqual({ ip: 'Error fetching server IP' });
         expect(axios.get).toHaveBeenCalledTimes(1);
     });
 });

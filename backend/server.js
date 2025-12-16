@@ -5,7 +5,9 @@ const path = require('path');
 const app = express();
 const port = 3001;
 
+app.set('trust proxy', true); // Enable proxy trust for Nginx X-Forwarded-For
 app.use(cors());
+const { lookupGeo } = require('./src/services/geoIpService');
 
 // 1. Health Check (Crucial for App Runner)
 app.get('/healthz', (req, res) => {
@@ -29,6 +31,33 @@ app.get('/api/health/db', async (req, res) => {
 });
 
 // 2. API Routes (Must come BEFORE static files)
+// Geo-IP Endpoint
+// Geo-IP Endpoint
+app.get('/api/geo', async (req, res) => {
+    let ip = req.ip;
+    const precise = req.query.precise === '1';
+
+    // 1. Initial Lookup
+    let result = await lookupGeo(ip, { includeLatLon: precise });
+
+    // 2. Dev Fallback: If local/private, try to get public IP to show real location
+    if (!result.ok && result.error?.code === 'PRIVATE_IP') {
+        try {
+            console.log(`[Dev] Private IP detected (${ip}). Fetching public IP for Geo simulation...`);
+            const publicRes = await axios.get('https://api.ipify.org?format=json', { timeout: 2000 });
+            if (publicRes.data.ip) {
+                ip = publicRes.data.ip;
+                // Retry lookup with public IP
+                result = await lookupGeo(ip, { includeLatLon: precise });
+            }
+        } catch (err) {
+            console.warn('[Dev] Failed to fetch public IP fallback:', err.message);
+        }
+    }
+
+    res.json(result);
+});
+
 app.get('/api/ip', async (req, res) => {
     try {
         const response = await axios.get('https://api.ipify.org?format=json', { timeout: 3000 });
@@ -41,34 +70,20 @@ app.get('/api/ip', async (req, res) => {
 });
 
 // --- Database Logic ---
-const { Pool } = require('pg');
-
-// Only init pool if env vars are present (to allow existing prod to work without breaking immediately)
-let pool;
-if (process.env.DB_HOST) {
-    pool = new Pool({
-        user: process.env.DB_USER,
-        host: process.env.DB_HOST,
-        database: process.env.DB_NAME,
-        password: process.env.DB_PASSWORD,
-        port: process.env.DB_PORT,
-    });
-}
+const { pool } = require('./src/config/db');
+const { recordVisit, getRecentVisits } = require('./src/services/historyService');
 
 app.use(express.json()); // Enable JSON body parsing
 
 // Save Visit
 app.post('/api/track', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not configured' });
-
-    const { ip, city, country, latitude, longitude } = req.body;
     try {
-        await pool.query(
-            'INSERT INTO visits (ip, city, country, latitude, longitude) VALUES ($1, $2, $3, $4, $5)',
-            [ip, city, country, latitude, longitude]
-        );
+        await recordVisit(req.body);
         res.status(201).json({ status: 'saved' });
     } catch (err) {
+        if (err.message === 'Database not configured') {
+            return res.status(503).json({ error: 'Database not configured' });
+        }
         console.error('Error saving visit:', err);
         res.status(500).json({ error: 'Failed to save visit' });
     }
@@ -76,12 +91,13 @@ app.post('/api/track', async (req, res) => {
 
 // Get History
 app.get('/api/history', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not configured' });
-
     try {
-        const result = await pool.query('SELECT * FROM visits ORDER BY timestamp DESC LIMIT 10');
-        res.json(result.rows);
+        const visits = await getRecentVisits();
+        res.json(visits);
     } catch (err) {
+        if (err.message === 'Database not configured') {
+            return res.status(503).json({ error: 'Database not configured' });
+        }
         console.error('Error fetching history:', err);
         res.status(500).json({ error: 'Failed to fetch history' });
     }

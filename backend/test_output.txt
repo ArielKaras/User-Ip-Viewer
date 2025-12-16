@@ -1,0 +1,51 @@
+
+> backend@1.0.0 test
+> jest
+
+(node:30204) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL tests/server.test.js
+  ● Console
+
+    console.error
+      Error fetching public IP: Network error
+
+    [0m [90m 50 |[39m         res[33m.[39mjson({ ip[33m:[39m publicIp })[33m;[39m
+     [90m 51 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 52 |[39m         console[33m.[39merror([32m'Error fetching public IP:'[39m[33m,[39m error[33m.[39mmessage)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 53 |[39m         res[33m.[39mstatus([35m500[39m)[33m.[39mjson({ ip[33m:[39m [32m'Error fetching server IP'[39m })[33m;[39m
+     [90m 54 |[39m     }
+     [90m 55 |[39m })[33m;[39m[0m
+
+      at error (server.js:52:17)
+
+  ● GET /api/ip › should return 500 error when external API fails
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "ip": "Error fetching public IP",
+    +   "ip": "Error fetching server IP",
+      }
+
+    [0m [90m 27 |[39m
+     [90m 28 |[39m         expect(res[33m.[39mstatusCode)[33m.[39mtoEqual([35m500[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 29 |[39m         expect(res[33m.[39mbody)[33m.[39mtoEqual({ ip[33m:[39m [32m'Error fetching public IP'[39m })[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 30 |[39m         expect(axios[33m.[39m[36mget[39m)[33m.[39mtoHaveBeenCalledTimes([35m1[39m)[33m;[39m
+     [90m 31 |[39m     })[33m;[39m
+     [90m 32 |[39m })[33m;[39m[0m
+
+      at Object.toEqual (tests/server.test.js:29:26)
+
+PASS tests/geoIpService.test.js
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       1 failed, 8 passed, 9 total
+Snapshots:   0 total
+Time:        0.419 s, estimated 1 s
+Ran all test suites.

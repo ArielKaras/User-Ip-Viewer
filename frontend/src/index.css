@@ -1,6 +1,99 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-background: #09090b;
+
+  --color-surface-primary: rgba(24, 24, 27, 0.4);
+  --color-surface-secondary: rgba(24, 24, 27, 0.2);
+
+  --color-border-DEFAULT: rgba(63, 63, 70, 0.5);
+  --color-border-subtle: rgba(39, 39, 42, 0.5);
+
+  --color-text-primary: #e4e4e7;
+  --color-text-secondary: #71717a;
+  --color-text-accent: #ffffff;
+
+  --color-status-success-text: #10b981;
+  --color-status-success-bg: rgba(16, 185, 129, 0.1);
+  --color-status-success-border: rgba(16, 185, 129, 0.2);
+
+  --color-status-warning-text: #f59e0b;
+  --color-status-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-status-warning-border: rgba(245, 158, 11, 0.2);
+
+  --color-status-error-text: #ef4444;
+  --color-status-error-bg: rgba(69, 10, 10, 0.1);
+  --color-status-error-border: rgba(127, 29, 29, 0.3);
+
+  /* Fonts */
+  --font-sans: 'Inter', 'sans-serif';
+  --font-mono: 'JetBrains Mono', 'monospace';
+
+  /* Animations */
+  --animate-fade-in: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-up: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* Custom Utilities if needed, or mapping legacy names */
+@layer utilities {
+  .bg-background {
+    background-color: var(--color-background);
+  }
+
+  /* Surface */
+  .bg-surface-primary {
+    background-color: var(--color-surface-primary);
+  }
+
+  .bg-surface-secondary {
+    background-color: var(--color-surface-secondary);
+  }
+
+  /* Borders */
+  .border-border {
+    border-color: var(--color-border-DEFAULT);
+  }
+
+  .border-border-subtle {
+    border-color: var(--color-border-subtle);
+  }
+
+  /* Text */
+  .text-text-primary {
+    color: var(--color-text-primary);
+  }
+
+  .text-text-secondary {
+    color: var(--color-text-secondary);
+  }
+
+  .text-text-accent {
+    color: var(--color-text-accent);
+  }
+}
 
 @layer base {
   :root {
@@ -9,11 +102,18 @@
   }
 
   body {
-    @apply bg-background text-text-primary antialiased font-sans;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-    /* Optional: Global selection color */
-    ::selection {
-      @apply bg-yellow-500/20 text-yellow-500;
-    }
+  /* Optional: Global selection color */
+  ::selection {
+    background-color: rgba(234, 179, 8, 0.2);
+    /* yellow-500/20 */
+    color: #eab308;
+    /* yellow-500 */
   }
 }

@@ -81,6 +81,7 @@ export default function App() {
                     loading={loading}
                     error={error}
                     env={meta.env}
+                    history={history}
                 />
 
                 {/* History List (New Feature) */}
