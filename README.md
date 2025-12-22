@@ -19,7 +19,7 @@ docker compose --profile tls up -d --build
 ### Key Workflow Docs
 *   **[AI Studio Bridge](docs/AI_STUDIO_BRIDGE.md)**: The mandatory context file for generating UI designs.
 *   **[Resolution Report](docs/resolution_report.md)**: How we fixed the "Black Screen".
-*   **[Status Report](docs/status_report_cloud_to_opsguard.md)**: The journey from Cloud to OpsGuard.
+*   **[ADR-001: Cloud to OpsGuard Pivot](docs/ADR-001-cloud-to-opsguard-pivot.md)**: Why we paused Cloud deployment for Observability.
 
 ## 🛠️ Release Qualification
 Before shipping, you must run the Qualification Pack:
