@@ -82,44 +82,82 @@ run_gate "gate3_integration" bash -lc '
   bash ./scripts/run-local-test.sh
 '
 
+# Gate 4: AI Analysis Probe
+# Only runs if fully configured
+run_gate "gate4_ai_analysis" bash -lc '
+# 1. Resolve Auth Token (Static or Ephemeral)
+# We need this regardless of the provider
+TOKEN="${OPSGUARD_TOKEN:-}"
+if [ -z "$TOKEN" ]; then
+    # Fetch from container if not in env
+    if TOKEN=$(docker compose --profile tls exec -T app cat .opsguard_token 2>/dev/null); then
+            TOKEN=$(echo "$TOKEN" | tr -d "[:space:]")
+    fi
+fi
+
+# 2. Check Activation
+ENABLED="${AI_ANALYSIS_ENABLED:-false}"
+PROVIDER="${AI_PROVIDER:-gemini}"
+
+if [ "$ENABLED" == "true" ] && [ -n "$TOKEN" ]; then
+    echo "AI Enabled. Provider: $PROVIDER"
+
+    # 3. Provider Specific Validation
+    if [ "$PROVIDER" == "gemini" ] && [ -z "$GEMINI_API_KEY" ]; then
+        echo "❌ FAILURE: Gemini selected but GEMINI_API_KEY is missing."
+        exit 1
+    fi
+    
+    if [ "$PROVIDER" == "ollama" ]; then
+        echo "  -> Note: Running in Sovereignty Mode (Ollama)."
+        echo "  -> (Ensure OLLAMA_URL is reachable from the container)"
+    fi
+
+    echo "Probing Endpoint..."
+    sleep 2
+
+    # 4. Make the Request
+    # We allow a longer timeout (20s) for Ollama/Cold-start
+    RESPONSE=$(curl -k -m 20 -s -w "\n%{http_code}" -X POST \
+        -H "X-OpsGuard-Token: $TOKEN" \
+        https://localhost/api/analyze)
+
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    BODY=$(echo "$RESPONSE" | sed "\$d")
+
+    if [ "$HTTP_CODE" == "200" ]; then
+         # Check structure if jq is installed
+        if command -v jq &> /dev/null; then
+            IS_VALID=$(echo "$BODY" | jq ".ok == true and (.analysis.summary | type == \"string\")")
+            if [ "$IS_VALID" == "true" ]; then
+                echo "✅ AI Analysis Operational (Code 200 + Valid JSON)"
+            else
+                echo "❌ Invalid Response Structure"
+                echo "$BODY"
+                exit 1
+            fi
+        else
+             echo "✅ AI Analysis Operational (Code 200) - jq missing, skipped structure check"
+        fi
+    else
+        echo "❌ AI Gate Failed (Code $HTTP_CODE)"
+        echo "Response: $BODY"
+        if [ "$PROVIDER" == "ollama" ]; then
+            echo "   (If using Ollama on E7270 without a GPU, a timeout might be expected.)"
+        fi
+        exit 1
+    fi
+else
+    echo "⚠️  Skipping AI Gate (Disabled or Token missing)"
+    if [ "$ENABLED" == "true" ] && [ -z "$TOKEN" ]; then
+         echo "   (Detailed Reason: AI_ANALYSIS_ENABLED=true but Token could not be retrieved)"
+    fi
+fi
+'
+
 log ""
 log "========================================"
 log "RELEASE QUALIFIED. READY TO SHIP."
 log "Logs saved to: ${RC_DIR}"
 log "========================================"
-echo "========================================"
-
-# Safety Interlock
-if [[ "${1:-}" != "--force" ]]; then
-    read -p "⚠️  WARNING: This will WIPE all local data and containers. Continue? [y/N] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "❌ Aborted by user."
-        exit 1
-    fi
-fi
-
-# Gate 0: Clean Build
-echo "🏗️  [Gate 0] Clean Build & Determinism..."
-docker compose down -v
-docker build --no-cache -f Dockerfile.combined -t user-ip-viewer:release-candidate .
-
-# Gate 1: Topology Verification
-echo "🔌 [Gate 1] Spin up TLS Stack..."
-docker compose --profile tls up -d --build
-
-echo "⏳ Waiting 15s for stabilization..."
-sleep 15
-
-# Gate 2: Smoke Tests (Micro-Validation)
-echo "🔍 [Gate 2] Running Smoke Tests..."
-./scripts/smoke-test.sh
-
-# Gate 3: Integration Tests (Deep Validation)
-echo "🧪 [Gate 3] Running Integration Tests..."
-./scripts/run-local-test.sh
-
-echo "========================================"
-echo "✅ RELEASE QUALIFIED. READY TO SHIP."
-echo "========================================"
 exit 0

@@ -2,8 +2,27 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+const fs = require('fs');
+const { randomUUID } = require('crypto');
+
 const app = express();
 const port = 3001;
+
+// --- Ephemeral Access Control ---
+// If OPSGUARD_TOKEN is not provided, generate one and lock it in the container.
+// This allows local scripts (docker exec) to retrieve it, but prevents external guess access.
+let activeOpsGuardToken = process.env.OPSGUARD_TOKEN;
+if (!activeOpsGuardToken) {
+    try {
+        activeOpsGuardToken = randomUUID();
+        // Write to root of app directory (WORKDIR is usually /app)
+        fs.writeFileSync('.opsguard_token', activeOpsGuardToken, { mode: 0o600 });
+        console.log('OpsGuard: Generated ephemeral token (saved to .opsguard_token)');
+    } catch (err) {
+        console.error('OpsGuard: Failed to generate ephemeral token:', err.message);
+    }
+}
+// --------------------------------
 
 app.set('trust proxy', true); // Enable proxy trust for Nginx X-Forwarded-For
 app.use(cors());
@@ -35,6 +54,80 @@ app.get('/metrics', async (req, res) => {
 app.get('/api/logs', (req, res) => {
     // Return logs in reverse order (newest first)
     res.json([...logBuffer].reverse());
+});
+
+// --- OPSGUARD AI ENDPOINT ---
+const { analyzeLogs } = require('./src/services/analysisService');
+let lastAnalysisTime = 0;
+
+app.post('/api/analyze', async (req, res) => {
+    // 1. Feature Flag
+    if (process.env.AI_ANALYSIS_ENABLED !== 'true') return res.status(404).json({ error: 'Not Found' });
+
+    // 2. Auth (Token)
+    const token = req.headers['x-opsguard-token'];
+    // Use the active/ephemeral token for validation
+    if (!token || token !== activeOpsGuardToken) {
+        if (req.log) req.log.warn({ event: 'auth_fail', ip: req.ip }, 'Invalid Analysis Token');
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // 3. Rate Limiting (1 request / 10s)
+    const now = Date.now();
+    if (now - lastAnalysisTime < 10000) {
+        res.set('Retry-After', '10');
+        return res.status(429).json({ error: 'rate_limited' });
+    }
+    lastAnalysisTime = now;
+
+    // 4. Execution
+    try {
+        const snapshot = [...logBuffer]; // Server-Authoritative
+
+        if (req.log) req.log.info({ count: snapshot.length, provider: process.env.AI_PROVIDER || 'gemini' }, 'Starting AI Analysis');
+
+        const result = await analyzeLogs(snapshot);
+
+        res.json({
+            ok: true,
+            provider: process.env.AI_PROVIDER || 'gemini',
+            timestamp: new Date().toISOString(),
+            analysis: result
+        });
+
+    } catch (err) {
+        if (req.log) req.log.error({ err: err.message }, 'Analysis Failed');
+
+        // Internal -> External Error Mapping
+        // We hide implementation details (like "Ollama unreachable") from the public API
+        const errorType = err.message.split(':')[0];
+
+        let status = 502;
+        let clientError = 'ai_upstream_failed';
+
+        switch (errorType) {
+            case 'CONFIG_MISSING':
+                status = 503;
+                clientError = 'ai_not_configured';
+                break;
+            case 'TIMEOUT':
+                status = 504;
+                clientError = 'ai_timeout';
+                break;
+            case 'INVALID_PROVIDER':
+                status = 400; // Configuration error
+                clientError = 'ai_config_error';
+                break;
+            case 'PROVIDER_UNREACHABLE':
+            case 'AI_RESPONSE_MALFORMED':
+            default:
+                status = 502;
+                clientError = 'ai_upstream_failed';
+                break;
+        }
+
+        res.status(status).json({ error: clientError });
+    }
 });
 // ------------------------------
 

@@ -34,7 +34,7 @@ const httpRequestsTotal = new promClient.Counter({
 // 3. In-Memory Log Buffer for "Live Stream"
 // Circular buffer to hold last 50 logs
 const logBuffer = [];
-const BUFFER_SIZE = 50;
+const BUFFER_SIZE = 200;
 
 const addToBuffer = (logEntry) => {
     logBuffer.push(logEntry);
