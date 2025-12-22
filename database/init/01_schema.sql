@@ -6,5 +6,8 @@ CREATE TABLE IF NOT EXISTS visits (
     country TEXT,
     latitude FLOAT,
     longitude FLOAT,
-    timestamp TIMESTAMPTZ DEFAULT NOW()
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    client_id TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_visits_client_id ON visits(client_id);

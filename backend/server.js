@@ -14,6 +14,30 @@ app.get('/healthz', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
 
+// --- OpsGuard Observability ---
+const observabilityMiddleware = require('./src/middleware/observability');
+const { register, logBuffer } = require('./src/utils/opsGuard');
+
+// Register Global Middleware (Applied to all requests)
+app.use(observabilityMiddleware);
+
+// Expose Prometheus Metrics
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', register.contentType);
+        res.end(await register.metrics());
+    } catch (ex) {
+        res.status(500).end(ex);
+    }
+});
+
+// Expose Live Log Stream (In-Memory Buffer)
+app.get('/api/logs', (req, res) => {
+    // Return logs in reverse order (newest first)
+    res.json([...logBuffer].reverse());
+});
+// ------------------------------
+
 // 1.1 DB Health Check
 app.get('/api/health/db', async (req, res) => {
     if (!pool) return res.status(503).json({ db: 'not configured' });
@@ -37,10 +61,22 @@ app.get('/api/geo', async (req, res) => {
     let ip = req.ip;
     const precise = req.query.precise === '1';
 
-    // 1. Initial Lookup
+    // 2. Dev Fallback: If local/private, try to get public IP to show real location
+    let resolutionMode = 'standard';
+
+    // Initial Lookup
     let result = await lookupGeo(ip, { includeLatLon: precise });
 
-    // 2. Dev Fallback: If local/private, try to get public IP to show real location
+    // [OpsGuard] Observability Hook: Log logic failures
+    if (!result.ok && req.log) {
+        req.log.warn({
+            event: 'geo_lookup_fail',
+            input_ip: ip,
+            error_code: result.error?.code,
+            error_msg: result.error?.message
+        }, `Geo Lookup Failed: ${result.error?.code || 'Unknown'}`);
+    }
+
     if (!result.ok && result.error?.code === 'PRIVATE_IP') {
         try {
             console.log(`[Dev] Private IP detected (${ip}). Fetching public IP for Geo simulation...`);
@@ -49,13 +85,15 @@ app.get('/api/geo', async (req, res) => {
                 ip = publicRes.data.ip;
                 // Retry lookup with public IP
                 result = await lookupGeo(ip, { includeLatLon: precise });
+                resolutionMode = 'dev_public_fallback';
             }
         } catch (err) {
             console.warn('[Dev] Failed to fetch public IP fallback:', err.message);
         }
     }
 
-    res.json(result);
+    // Attach metadata for frontend/audit
+    res.json({ ...result, meta: { resolution_mode: resolutionMode } });
 });
 
 app.get('/api/ip', async (req, res) => {
@@ -71,14 +109,24 @@ app.get('/api/ip', async (req, res) => {
 
 // --- Database Logic ---
 const { pool } = require('./src/config/db');
-const { recordVisit, getRecentVisits } = require('./src/services/historyService');
+const { recordVisit, getRecentVisits, clearHistory } = require('./src/services/historyService');
 
 app.use(express.json()); // Enable JSON body parsing
 
+// Middleware to enforce Client ID for tracking routes
+const requireClientId = (req, res, next) => {
+    const clientId = req.get('X-Client-Id');
+    if (!clientId) {
+        return res.status(400).json({ error: 'X-Client-Id header required' });
+    }
+    req.clientId = clientId;
+    next();
+};
+
 // Save Visit
-app.post('/api/track', async (req, res) => {
+app.post('/api/track', requireClientId, async (req, res) => {
     try {
-        await recordVisit(req.body);
+        await recordVisit(req.body, req.clientId);
         res.status(201).json({ status: 'saved' });
     } catch (err) {
         if (err.message === 'Database not configured') {
@@ -90,9 +138,9 @@ app.post('/api/track', async (req, res) => {
 });
 
 // Get History
-app.get('/api/history', async (req, res) => {
+app.get('/api/history', requireClientId, async (req, res) => {
     try {
-        const visits = await getRecentVisits();
+        const visits = await getRecentVisits(req.clientId);
         res.json(visits);
     } catch (err) {
         if (err.message === 'Database not configured') {
@@ -100,6 +148,17 @@ app.get('/api/history', async (req, res) => {
         }
         console.error('Error fetching history:', err);
         res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
+
+// Clear History (Privacy Control)
+app.delete('/api/history', requireClientId, async (req, res) => {
+    try {
+        await clearHistory(req.clientId);
+        res.status(204).send();
+    } catch (err) {
+        console.error('Error clearing history:', err);
+        res.status(500).json({ error: 'Failed to clear history' });
     }
 });
 

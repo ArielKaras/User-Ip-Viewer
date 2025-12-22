@@ -61,9 +61,18 @@ async function lookupGeo(ip, opts = {}) {
     }
 
     // 3. Provider Call
-    const fields = 'status,message,country,regionName,city,lat,lon,query';
-    // ip-api.com Free Tier only supports HTTP. HTTPS requires a paid license.
-    const url = `http://ip-api.com/json/${cleanIp}?fields=${fields}`;
+    // Added: region (code), isp, timezone
+    const fields = 'status,message,country,regionName,region,city,lat,lon,isp,timezone,query';
+
+    // Security: Default to HTTPS. Allow override to HTTP (e.g., for Free Tier) via env var.
+    const scheme = process.env.GEO_PROVIDER_SCHEME || 'https';
+
+    if (scheme === 'http') {
+        process.emitWarning('Security Warning: Geo provider running over HTTP; IP metadata not encrypted in transit.');
+        console.warn('⚠️  [Security] Geo provider running over HTTP. Use HTTPS in production.');
+    }
+
+    const url = `${scheme}://ip-api.com/json/${cleanIp}?fields=${fields}`;
 
     try {
         const response = await axios.get(url, { timeout: timeoutMs });
@@ -89,12 +98,24 @@ async function lookupGeo(ip, opts = {}) {
         // 5. Success - Build Response
         return {
             ok: true,
-            ip: data.query || cleanIp, // Authoritative IP from provider if available
+            ip: data.query || cleanIp,
             country: data.country || null,
             region: data.regionName || null,
+            region_code: data.region || null, // The short code (e.g., IL, CA)
             city: data.city || null,
             lat: includeLatLon ? (data.lat || null) : null,
             lon: includeLatLon ? (data.lon || null) : null,
+            // Alias for frontend compatibility
+            latitude: includeLatLon ? (data.lat || null) : null,
+            longitude: includeLatLon ? (data.lon || null) : null,
+            // Enhanced Data for Scientific UI
+            connection: {
+                isp: data.isp || 'Unknown ISP'
+            },
+            timezone: {
+                name: data.timezone,
+                current_time: new Date().toLocaleTimeString('en-US', { timeZone: data.timezone || 'UTC' })
+            },
             source: 'ip-api.com',
             timestamp
         };
