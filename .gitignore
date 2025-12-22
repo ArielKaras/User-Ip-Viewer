@@ -138,8 +138,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Documentation
-docs/
+# Documentation (Public)
+!docs/
+
+# Design Contract & Secrets (Private)
+docs/internal/
+docs/design/
 
 # Ops Scripts (Private)
 scripts/ecr-lifecycle.json

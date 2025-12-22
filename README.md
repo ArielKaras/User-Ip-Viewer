@@ -1,2 +1,34 @@
 # User-Ip-Viewer
-User-IP-Viewer is a web application built with React and Node.js that retrieves and displays the user's IP address. This project covers DevOps concepts and tools such as Dockerfiles for containerization, GitHub Actions for CI/CD, Terraform for infrastructure as code, and AWS services like ECR for container registry and EKS for container orchestration. It demonstrates how to integrate these tools to create an efficient, automated, and scalable deployment pipeline for web applications.
+**Mission**: "Observability First. Design Precision."
+
+A full-stack IP Geolocation application demonstrating robust DevOps practices, "Scientific Instrument" design, and "OpsGuard" observability.
+
+## 🚀 Quick Start
+```bash
+# 1. Start the Stack (HTTPS enabled)
+docker compose --profile tls up -d --build
+
+# 2. Open the App
+# https://localhost
+```
+
+## 📚 Documentation
+> **New Team Member? Start Here:**
+> 👉 **[ONBOARDING GUIDE](docs/ONBOARDING.md)**
+
+### Key Workflow Docs
+*   **[AI Studio Bridge](docs/AI_STUDIO_BRIDGE.md)**: The mandatory context file for generating UI designs.
+*   **[Resolution Report](docs/resolution_report.md)**: How we fixed the "Black Screen".
+*   **[Status Report](docs/status_report_cloud_to_opsguard.md)**: The journey from Cloud to OpsGuard.
+
+## 🛠️ Release Qualification
+Before shipping, you must run the Qualification Pack:
+```bash
+./scripts/release-qualify.sh
+```
+
+## 🏗️ Architecture
+*   **Frontend**: React 18, Vite, Tailwind v4.
+*   **Backend**: Node.js, Express, Pino Logger.
+*   **Database**: PostgreSQL with persistent schema.
+*   **Infra**: Nginx Ingress (TLS-Termination).
