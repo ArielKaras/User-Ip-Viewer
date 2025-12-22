@@ -1,22 +1,22 @@
 import React from 'react';
 
 interface StatusBadgeProps {
-    env: 'DEV' | 'PROD';
+    status: 'DEV' | 'PROD';
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ env }) => {
-    const isProd = env === 'PROD';
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
+    const isProd = status === 'PROD';
 
     return (
         <div className={`
       inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider border
       ${isProd
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+                : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
             }
     `}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isProd ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`} />
-            {env}
+            <div className={`w-1.5 h-1.5 rounded-full ${isProd ? 'bg-cyan-400' : 'bg-purple-400'} animate-pulse shadow-[0_0_8px_currentColor]`} />
+            {status}
         </div>
     );
 };

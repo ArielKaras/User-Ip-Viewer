@@ -13,6 +13,7 @@ export interface Visit {
 
 interface HistoryListProps {
     visits: Visit[];
+    onClear?: () => void;
 }
 
 // Haversine formula to calculate distance in km
@@ -29,14 +30,24 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
     return parseFloat((R * c).toFixed(1)); // Return rounded to 1 decimal
 };
 
-export const HistoryList: React.FC<HistoryListProps> = ({ visits }) => {
+export const HistoryList: React.FC<HistoryListProps> = ({ visits, onClear }) => {
     if (visits.length === 0) return null;
 
     return (
         <div className="w-full max-w-md mt-8 animate-fade-in [animation-delay:200ms]">
-            <div className="flex items-center gap-2 mb-4 px-2">
-                <Clock className="w-4 h-4 text-text-secondary" />
-                <h3 className="text-xs font-mono uppercase tracking-widest text-text-secondary">Recent Signals</h3>
+            <div className="flex items-center justify-between gap-2 mb-4 px-2">
+                <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-text-secondary" />
+                    <h3 className="text-xs font-mono uppercase tracking-widest text-text-secondary">Recent Signals</h3>
+                </div>
+                {onClear && (
+                    <button
+                        onClick={onClear}
+                        className="text-[10px] text-text-secondary hover:text-status-error-text transition-colors uppercase tracking-wider font-mono opacity-60 hover:opacity-100"
+                    >
+                        Clear History
+                    </button>
+                )}
             </div>
 
             <div className="space-y-3">

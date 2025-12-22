@@ -1,52 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { IpCard } from './components/IpCard';
-import { HistoryList, Visit } from './components/HistoryList';
-import { fetchIpData, getEnvironmentMetadata, fetchBuildMetadata, trackVisit, fetchHistory } from './services/ipService';
+import { Dashboard } from './components/Dashboard';
+import { fetchIpData, getEnvironmentMetadata } from './services/ipService';
 import { IpData, BuildMetadata } from './types';
-import { GitCommit, Activity } from 'lucide-react';
+import { GitCommit, Activity, Lock, Unlock } from 'lucide-react';
 
 export default function App() {
     const [data, setData] = useState<IpData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [history, setHistory] = useState<Visit[]>([]);
     const [meta, setMeta] = useState<BuildMetadata>({
         env: 'PROD',
         commitSha: '---',
         timestamp: '---'
     });
+    const [view, setView] = useState<'PUBLIC' | 'OPSGUARD'>('PUBLIC');
 
     useEffect(() => {
-        // 1. Determine Environment (Local vs Prod)
+        // Determine environment and "mock" build data for this demo
         const env = getEnvironmentMetadata();
+        const mockSha = "7f3a92b";
+        const now = new Date();
 
-        // 2. Fetch Real Build Metadata from Backend
-        fetchBuildMetadata().then(backendMeta => {
-            setMeta(prev => ({
-                ...prev,
-                env,
-                commitSha: backendMeta.commitSha || 'unknown',
-                timestamp: backendMeta.timestamp ? new Date(backendMeta.timestamp).toLocaleString() : 'unknown'
-            }));
+        setMeta({
+            env,
+            commitSha: mockSha,
+            timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
 
-        // 3. Fetch IP Data & History
         const loadData = async () => {
             try {
-                // Artificial delay for smooth animation demonstration (800ms)
-                await new Promise(resolve => setTimeout(resolve, 800));
-
-                // Fetch Current IP
                 const ipData = await fetchIpData();
+                await new Promise(resolve => setTimeout(resolve, 800));
                 setData(ipData);
-
-                // Track & Update History
-                if (ipData) {
-                    await trackVisit(ipData);
-                    const historyData = await fetchHistory();
-                    setHistory(historyData);
-                }
-
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Unknown error occurred');
             } finally {
@@ -58,53 +44,57 @@ export default function App() {
     }, []);
 
     return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center p-6 relative overflow-hidden bg-background text-text-primary font-sans selection:bg-brand-primary/20 selection:text-brand-primary">
+        <div className="min-h-screen w-full flex flex-col items-center justify-center p-6 relative overflow-hidden bg-zinc-950">
 
             {/* Background Decor */}
             <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-zinc-900 to-transparent opacity-40 pointer-events-none" />
-            <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none mix-blend-overlay"></div>
 
-            <main className="w-full relative z-10 flex flex-col items-center gap-8 pb-12">
+            <main className="w-full relative z-10 flex flex-col items-center gap-8 max-w-5xl">
 
                 {/* Header / Brand (Minimal) */}
-                <div className="text-center space-y-2 mb-4 animate-fade-in">
-                    <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-surface-secondary border border-border-subtle shadow-sm mb-4">
-                        <Activity className="w-6 h-6 text-text-primary" />
+                <div className={`text-center space-y-2 mb-4 animate-fade-in transition-all duration-500 ${view === 'OPSGUARD' ? 'opacity-50 scale-90' : 'opacity-100'}`}>
+                    <div
+                        className="inline-flex items-center justify-center p-3 rounded-2xl bg-zinc-900/50 border border-zinc-800 shadow-sm mb-4 cursor-pointer hover:border-zinc-700 transition-colors"
+                        onClick={() => setView(view === 'PUBLIC' ? 'OPSGUARD' : 'PUBLIC')}
+                    >
+                        <Activity className={`w-6 h-6 ${view === 'OPSGUARD' ? 'text-cyan-400' : 'text-zinc-100'}`} />
                     </div>
-                    <h1 className="text-xl font-semibold text-text-primary tracking-tight">System Identity</h1>
-                    <p className="text-sm text-text-secondary">Internal diagnostics & network telemetry</p>
+                    <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">System Identity</h1>
+                    <p className="text-sm text-zinc-500">Internal diagnostics & network telemetry</p>
                 </div>
 
-                {/* Core Card */}
-                <IpCard
-                    data={data}
-                    loading={loading}
-                    error={error}
-                    env={meta.env}
-                    history={history}
-                />
-
-                {/* History List (New Feature) */}
-                {!loading && !error && history.length > 0 && (
-                    <HistoryList visits={history} />
+                {/* View Switcher */}
+                {view === 'PUBLIC' ? (
+                    <IpCard
+                        data={data}
+                        loading={loading}
+                        error={error}
+                        env={meta.env}
+                    />
+                ) : (
+                    <Dashboard />
                 )}
 
                 {/* Technical Footer */}
-                <footer className="mt-12 text-center animate-fade-in [animation-delay:500ms] opacity-0" style={{ animationFillMode: 'forwards' }}>
+                <footer className="mt-12 text-center animate-fade-in [animation-delay:200ms] opacity-0" style={{ animationFillMode: 'forwards' }}>
                     <div className="flex flex-col items-center gap-3">
-                        <div className="flex items-center gap-6 text-[10px] md:text-xs text-text-secondary font-mono tracking-wide uppercase">
-                            <div className="flex items-center gap-1.5 hover:text-text-primary transition-colors cursor-default">
+                        <div className="flex items-center gap-6 text-[10px] md:text-xs text-zinc-600 font-mono tracking-wide uppercase">
+                            <div className="flex items-center gap-1.5 hover:text-zinc-400 transition-colors cursor-default">
                                 <GitCommit size={12} />
-                                <span>SHA {meta.commitSha.substring(0, 7)}</span>
+                                <span>SHA {meta.commitSha}</span>
                             </div>
-                            <div className="w-1 h-1 rounded-full bg-border" />
-                            <div className="hover:text-text-primary transition-colors cursor-default">
-                                BUILT {meta.timestamp}
-                            </div>
+                            <div className="w-1 h-1 rounded-full bg-zinc-800" />
+                            <button
+                                onClick={() => setView(view === 'PUBLIC' ? 'OPSGUARD' : 'PUBLIC')}
+                                className="flex items-center gap-1.5 hover:text-cyan-500 transition-colors cursor-pointer group"
+                            >
+                                {view === 'PUBLIC' ? <Lock size={10} /> : <Unlock size={10} />}
+                                <span className="group-hover:underline decoration-zinc-800 underline-offset-4">
+                                    {view === 'PUBLIC' ? 'RESTRICTED ACCESS' : 'OPSGUARD ACTIVE'}
+                                </span>
+                            </button>
                         </div>
-                        <p className="text-[10px] text-text-secondary max-w-[200px] leading-relaxed">
-                            Restricted access. Use with caution.
-                        </p>
                     </div>
                 </footer>
 

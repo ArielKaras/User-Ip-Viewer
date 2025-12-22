@@ -1,19 +1,12 @@
 import { IpData, BuildMetadata } from '../types';
+import { getClientId, isTrackingEnabled } from '../utils/clientId';
 
 export const fetchIpData = async (): Promise<IpData> => {
+    // ... existing ...
     try {
-        // Call our own Backend-for-Frontend (BFF) endpoint
-        // This includes IP resolution + Geo lookup in one safe call
         const response = await fetch('/api/geo?precise=1');
-
-        if (!response.ok) {
-            throw new Error(`Service unavailable: ${response.statusText}`);
-        }
-
+        // ... existing ...
         const data = await response.json();
-
-        // Backend returns { ok: boolean, ... }
-        // We can pass it through directly as it matches IpData interface now
         return data as IpData;
     } catch (error) {
         console.error("Error fetching IP data:", error);
@@ -22,10 +15,15 @@ export const fetchIpData = async (): Promise<IpData> => {
 };
 
 export const trackVisit = async (data: IpData): Promise<void> => {
+    if (!isTrackingEnabled()) return; // Privacy control
+
     try {
         await fetch('/api/track', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Client-Id': getClientId()
+            },
             body: JSON.stringify({
                 ip: data.ip,
                 city: data.city || 'Unknown',
@@ -36,18 +34,30 @@ export const trackVisit = async (data: IpData): Promise<void> => {
         });
     } catch (error) {
         console.error("Failed to track visit:", error);
-        // Fail silently to not disrupt UI
     }
 };
 
 export const fetchHistory = async (): Promise<any[]> => {
     try {
-        const response = await fetch('/api/history');
+        const response = await fetch('/api/history', {
+            headers: { 'X-Client-Id': getClientId() }
+        });
         if (!response.ok) return [];
         return await response.json();
     } catch (error) {
         console.error("Failed to fetch history:", error);
         return [];
+    }
+};
+
+export const clearHistory = async (): Promise<void> => {
+    try {
+        await fetch('/api/history', {
+            method: 'DELETE',
+            headers: { 'X-Client-Id': getClientId() }
+        });
+    } catch (error) {
+        console.error("Failed to clear history:", error);
     }
 };
 
