@@ -26,9 +26,13 @@ README.md
 # Documentation
 *.md
 
-# Design Contract (Private)
-docs/design/
+# Documentation
+docs/
 
 # Ops Scripts (Private)
 scripts/ecr-lifecycle.json
 scripts/apply-ecr-policy.sh
+
+# IDE & Logs
+.vscode/
+build_log.txt
