@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { metrics } = require('../utils/opsGuard');
 
 // --- CONFIGURATION ---
 const TIMEOUT_MS = 15000; // 15s limit for everyone
@@ -117,14 +118,27 @@ async function analyzeLogs(rawLogs) {
     // 1. Sanitize
     const cleanLogs = sanitizeLogs(rawLogs);
 
+    // [Prometheus] Start Timer
+    const endTimer = metrics.aiAnalysisDurationSeconds.startTimer({ provider: providerName });
+
     try {
         // 2. Execute Strategy
         const rawOutput = await adapter(cleanLogs);
 
         // 3. Normalize & Return
-        return normalizeResponse(rawOutput, providerName);
+        const result = normalizeResponse(rawOutput, providerName);
+
+        // [Prometheus] Success
+        metrics.aiRequestsTotal.inc({ provider: providerName, status: 'success' });
+        endTimer({ success: 'true' });
+
+        return result;
 
     } catch (error) {
+        // [Prometheus] Error
+        metrics.aiRequestsTotal.inc({ provider: providerName, status: 'error' });
+        endTimer({ success: 'false' });
+
         // Map specific axios errors
         if (error.code === 'ECONNREFUSED') throw new Error('PROVIDER_UNREACHABLE');
         if (error.code === 'ECONNABORTED') throw new Error('TIMEOUT');

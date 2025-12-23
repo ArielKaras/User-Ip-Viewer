@@ -1,0 +1,43 @@
+name: Audio Documentation
+
+on:
+  push:
+    paths:
+      - 'docs/wiki/**'
+      - '.github/workflows/audio-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Required for requesting the JWT
+  contents: read  # Required for actions/checkout
+
+jobs:
+  generate-audio:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./docs
+        run: npm ci
+
+      - name: Generate and Upload Audio
+        working-directory: ./docs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+        run: node scripts/generate-audio.js

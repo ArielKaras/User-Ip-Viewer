@@ -20,6 +20,24 @@ else
     pass "Port 3001 is correctly unreachable (Isolation OK)"
 fi
 
+# Gate 1.5: Observability Stack
+echo "[1.5/6] Checking Observability Stack..."
+# Prometheus
+if curl -s "http://localhost:9090/-/healthy" | grep -q 'Prometheus Server is Healthy'; then
+    pass "Prometheus is UP (9090)"
+else
+    # Warn but don't fail strictly if local dev hasn't spun it up? 
+    # User asked for "full infrastructure", so we should FAIL if it's missing in a "release quality" test.
+    fail "Prometheus check failed (localhost:9090)"
+fi
+
+# Grafana
+if curl -s "http://localhost:3000/api/health" | grep -q '"database": "ok"'; then
+    pass "Grafana is UP (3000)"
+else
+    fail "Grafana check failed (localhost:3000)"
+fi
+
 # Gate 2: Public Ingress
 echo "[2/6] Checking /healthz..."
 if curl -kfsS "$BASE_URL/healthz" | grep -q '"status":"ok"'; then

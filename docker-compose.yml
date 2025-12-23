@@ -49,6 +49,39 @@ services:
       timeout: 5s
       retries: 5
 
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - data-net
+      - ingress-net # For exposure if needed, or stick to data-net. 
+      # Actually app is on data-net. Prometheus needs to reach app:3001. app exposes 3001 internally.
+      # So data-net is fine.
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - data-net
+      - ingress-net # To be accessible from host on localhost:3000 (bridge works even if internal? No, internal blocks outbound, not port mapping inbound usually, but let's be safe and use ingress-net for accessibility)
+      # Wait, if data-net is internal=true, docker compose might isolate it from bridge gateway?
+      # Typically internal=true removes the default gateway.
+      # Exposed ports on internal network services are NOT reachable from host in some versions?
+      # Actually, simple port mapping works on bridge networks even without gateway.
+      # BUT, let's just add them to `ingress-net` to be safe and consistent with "management".
+
 volumes:
   postgres_data:
 

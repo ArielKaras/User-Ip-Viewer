@@ -1,0 +1,24 @@
+{
+    "name": "opsguard-docs",
+    "version": "1.0.0",
+    "description": "OpsGuard Wiki",
+    "main": "index.js",
+    "scripts": {
+        "docs:dev": "vitepress dev",
+        "docs:build": "vitepress build",
+        "docs:preview": "vitepress preview"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@aws-sdk/client-s3": "^3.957.0",
+        "dotenv": "^17.2.3",
+        "glob": "^13.0.0",
+        "gray-matter": "^4.0.3",
+        "openai": "^6.15.0",
+        "remove-markdown": "^0.6.2",
+        "vitepress": "^1.0.0-rc.31",
+        "vue": "^3.4.0"
+    }
+}

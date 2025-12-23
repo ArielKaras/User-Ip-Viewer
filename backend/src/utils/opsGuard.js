@@ -31,6 +31,22 @@ const httpRequestsTotal = new promClient.Counter({
     registers: [register]
 });
 
+// AI Metrics
+const aiAnalysisDurationSeconds = new promClient.Histogram({
+    name: 'ai_analysis_duration_seconds',
+    help: 'Duration of AI analysis in seconds',
+    labelNames: ['provider', 'success'],
+    buckets: [1, 2, 5, 10, 15, 30], // AI can be slow (especially local Ollama)
+    registers: [register]
+});
+
+const aiRequestsTotal = new promClient.Counter({
+    name: 'ai_requests_total',
+    help: 'Total number of AI analysis requests',
+    labelNames: ['provider', 'status'], // status: 'success', 'timeout', 'error'
+    registers: [register]
+});
+
 // 3. In-Memory Log Buffer for "Live Stream"
 // Circular buffer to hold last 50 logs
 const logBuffer = [];
@@ -52,7 +68,9 @@ module.exports = {
     register,
     metrics: {
         httpRequestDurationMicroseconds,
-        httpRequestsTotal
+        httpRequestsTotal,
+        aiAnalysisDurationSeconds,
+        aiRequestsTotal
     },
     logBuffer,
     addToBuffer
