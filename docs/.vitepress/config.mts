@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
     title: "OpsGuard Wiki",
     description: "Secure, Hardened, and Hybrid AI",
+    base: '/User-Ip-Viewer/',
     srcExclude: ['design/**'],
     ignoreDeadLinks: true,
     themeConfig: {
