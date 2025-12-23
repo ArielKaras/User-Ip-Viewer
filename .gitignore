@@ -155,4 +155,6 @@ scripts/setup-aws-oidc.sh
 
 # IDE & Logs
 .vscode/
-build_log.txt
+
+# Secrets
+secrets/

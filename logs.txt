@@ -1,0 +1,18 @@
+app-1  | OpsGuard: Generated ephemeral token (saved to .opsguard_token)
+app-1  | /app/src/config/db.js:12
+app-1  |             console.error(`Could not read secret file: ${ process.env[fileEnv] } `);
+app-1  |                            ^^^^^
+app-1  | 
+app-1  | SyntaxError: Unexpected identifier 'Could'
+app-1  |     at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+app-1  |     at Module._compile (node:internal/modules/cjs/loader:1495:20)
+app-1  |     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+app-1  |     at Module.load (node:internal/modules/cjs/loader:1266:32)
+app-1  |     at Module._load (node:internal/modules/cjs/loader:1091:12)
+app-1  |     at Module.require (node:internal/modules/cjs/loader:1289:19)
+app-1  |     at require (node:internal/modules/helpers:182:18)
+app-1  |     at Object.<anonymous> (/app/server.js:204:18)
+app-1  |     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+app-1  |     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+app-1  | 
+app-1  | Node.js v20.19.6

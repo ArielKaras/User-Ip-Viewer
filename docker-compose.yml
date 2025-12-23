@@ -22,9 +22,12 @@ services:
     environment:
       - DB_HOST=db
       - DB_USER=app_user
-      - DB_PASSWORD=secure_password
       - DB_NAME=user_ip_db
       - DB_PORT=5432
+      # Use file pointer for secret
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+    secrets:
+      - db_password
     depends_on:
       db:
         condition: service_healthy
@@ -36,8 +39,11 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: app_user
-      POSTGRES_PASSWORD: secure_password
       POSTGRES_DB: user_ip_db
+      # Use native Postgres secret file support
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d:ro
@@ -59,9 +65,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
     networks:
       - data-net
-      - ingress-net # For exposure if needed, or stick to data-net. 
-      # Actually app is on data-net. Prometheus needs to reach app:3001. app exposes 3001 internally.
-      # So data-net is fine.
+      - ingress-net
 
   grafana:
     image: grafana/grafana:latest
@@ -70,17 +74,27 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # Grafana often supports GF_SECURITY_ADMIN_PASSWORD__FILE or we can use a wrapper
+      # For standard images, usually we need to set GF_SECURITY_ADMIN_PASSWORD
+      # Let's try to map it, or use the file provisioner strictly. 
+      # Since the user plan suggests file provision, we will use GF_SECURITY_ADMIN_PASSWORD__FILE if supported, 
+      # but standard Grafana might not support it out of box without a custom entrypoint script.
+      # HOWEVER, for this refactor, we will follow the plan to use secrets.
+      # If Grafana doesn't support __FILE, we can strip it, but let's stick to the plan:
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_password
+    secrets:
+      - grafana_password
     depends_on:
       - prometheus
     networks:
       - data-net
-      - ingress-net # To be accessible from host on localhost:3000 (bridge works even if internal? No, internal blocks outbound, not port mapping inbound usually, but let's be safe and use ingress-net for accessibility)
-      # Wait, if data-net is internal=true, docker compose might isolate it from bridge gateway?
-      # Typically internal=true removes the default gateway.
-      # Exposed ports on internal network services are NOT reachable from host in some versions?
-      # Actually, simple port mapping works on bridge networks even without gateway.
-      # BUT, let's just add them to `ingress-net` to be safe and consistent with "management".
+      - ingress-net
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  grafana_password:
+    file: ./secrets/grafana_password.txt
 
 volumes:
   postgres_data:

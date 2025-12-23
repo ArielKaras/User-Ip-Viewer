@@ -1,0 +1,89 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.combined
+#1 transferring dockerfile: 968B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:20-alpine
+#2 DONE 0.3s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 490B done
+#3 DONE 0.0s
+
+#4 [frontend-builder 1/6] FROM docker.io/library/node:20-alpine@sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9d9272f488ac03a370d448
+#4 resolve docker.io/library/node:20-alpine@sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9d9272f488ac03a370d448 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 2.55kB done
+#5 DONE 0.0s
+
+#6 [frontend-builder 2/6] WORKDIR /app/frontend
+#6 CACHED
+
+#7 [frontend-builder 3/6] COPY frontend/package*.json ./
+#7 CACHED
+
+#8 [frontend-builder 4/6] RUN npm ci
+#8 1.318 npm error code ERESOLVE
+#8 1.318 npm error ERESOLVE could not resolve
+#8 1.318 npm error
+#8 1.318 npm error While resolving: react-leaflet@5.0.0
+#8 1.318 npm error Found: react@18.3.1
+#8 1.318 npm error node_modules/react
+#8 1.318 npm error   react@"^18.2.0" from the root project
+#8 1.318 npm error   peerOptional react@"^16.9.0 || ^17.0.0 || ^18 || ^19" from @reduxjs/toolkit@2.11.2
+#8 1.318 npm error   node_modules/@reduxjs/toolkit
+#8 1.318 npm error     @reduxjs/toolkit@"1.x.x || 2.x.x" from recharts@3.6.0
+#8 1.318 npm error     node_modules/recharts
+#8 1.318 npm error       recharts@"^3.6.0" from the root project
+#8 1.318 npm error   6 more (@testing-library/react, lucide-react, react-dom, ...)
+#8 1.318 npm error
+#8 1.318 npm error Could not resolve dependency:
+#8 1.318 npm error peer react@"^19.0.0" from react-leaflet@5.0.0
+#8 1.318 npm error node_modules/react-leaflet
+#8 1.318 npm error   react-leaflet@"^5.0.0" from the root project
+#8 1.318 npm error
+#8 1.318 npm error Conflicting peer dependency: react@19.2.3
+#8 1.318 npm error node_modules/react
+#8 1.318 npm error   peer react@"^19.0.0" from react-leaflet@5.0.0
+#8 1.318 npm error   node_modules/react-leaflet
+#8 1.318 npm error     react-leaflet@"^5.0.0" from the root project
+#8 1.318 npm error
+#8 1.318 npm error Fix the upstream dependency conflict, or retry
+#8 1.318 npm error this command with --force or --legacy-peer-deps
+#8 1.318 npm error to accept an incorrect (and potentially broken) dependency resolution.
+#8 1.318 npm error
+#8 1.318 npm error
+#8 1.318 npm error For a full report see:
+#8 1.318 npm error /root/.npm/_logs/2025-12-22T06_22_00_280Z-eresolve-report.txt
+#8 1.320 npm notice
+#8 1.320 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#8 1.320 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#8 1.320 npm notice To update run: npm install -g npm@11.7.0
+#8 1.320 npm notice
+#8 1.320 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-12-22T06_22_00_280Z-debug-0.log
+#8 ERROR: process "/bin/sh -c npm ci" did not complete successfully: exit code: 1
+------
+ > [frontend-builder 4/6] RUN npm ci:
+1.318 npm error
+1.318 npm error
+1.318 npm error For a full report see:
+1.318 npm error /root/.npm/_logs/2025-12-22T06_22_00_280Z-eresolve-report.txt
+1.320 npm notice
+1.320 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+1.320 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+1.320 npm notice To update run: npm install -g npm@11.7.0
+1.320 npm notice
+1.320 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-12-22T06_22_00_280Z-debug-0.log
+------
+Dockerfile.combined:5
+--------------------
+   3 |     # Optimize cache: Install dependencies first
+   4 |     COPY frontend/package*.json ./
+   5 | >>> RUN npm ci
+   6 |     # Build frontend (Vite outputs to 'dist')
+   7 |     COPY frontend/ .
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm ci" did not complete successfully: exit code: 1
